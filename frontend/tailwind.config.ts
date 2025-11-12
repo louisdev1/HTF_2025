@@ -9,33 +9,16 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ocean: {
-          50: '#f0f9ff',
-          100: '#e0f2fe',
-          200: '#b9e6fe',
-          300: '#7dd3fc',
-          400: '#38bdf8',
-          500: '#0ea5e9',
-          600: '#0284c7',
-          700: '#0369a1',
-          800: '#075985',
-          900: '#0c4a6e',
-          950: '#082f49',
-        },
-      },
-      animation: {
-        'fade-in': 'fadeIn 0.3s ease-in',
-        'slide-up': 'slideUp 0.3s ease-out',
-      },
-      keyframes: {
-        fadeIn: {
-          '0%': { opacity: '0' },
-          '100%': { opacity: '1' },
-        },
-        slideUp: {
-          '0%': { transform: 'translateY(10px)', opacity: '0' },
-          '100%': { transform: 'translateY(0)', opacity: '1' },
-        },
+        'deep-ocean': 'var(--color-deep-ocean)',
+        'dark-navy': 'var(--color-dark-navy)',
+        'nautical-blue': 'var(--color-nautical-blue)',
+        'ocean-teal': 'var(--color-ocean-teal)',
+        'sonar-green': 'var(--color-sonar-green)',
+        'warning-amber': 'var(--color-warning-amber)',
+        'danger-red': 'var(--color-danger-red)',
+        'panel-border': 'var(--color-panel-border)',
+        'text-primary': 'var(--color-text-primary)',
+        'text-secondary': 'var(--color-text-secondary)',
       },
     },
   },
