@@ -1,9 +1,10 @@
 import { fetchFishes } from "@/api/fish";
 import { getRarityOrder } from "@/utils/rarity";
 import FishTrackerLayout from "@/components/FishTrackerLayout";
+import { Fish } from "@/types/fish";
 
 export default async function Home() {
-  let fishes;
+  let fishes: Fish[];
 
   try {
     fishes = await fetchFishes();

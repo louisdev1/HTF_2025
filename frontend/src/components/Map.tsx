@@ -59,7 +59,7 @@ export default function MapComponent({
           <FishMarker
             key={fish.id}
             fish={fish}
-            isHovered={fish.id === hoveredFishId}
+            isHovered={fish.id.toString() === hoveredFishId}
             isAnyHovered={isAnyHovered}
           />
         ))}

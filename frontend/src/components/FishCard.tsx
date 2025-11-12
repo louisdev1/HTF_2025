@@ -6,7 +6,7 @@ import { formatDistanceToNow } from "date-fns";
 
 interface FishCardProps {
   fish: Fish;
-  onHover: (fishId: string | null) => void;
+  onHover?: (fishId: string | null) => void;
 }
 
 export default function FishCard({ fish, onHover }: FishCardProps) {
@@ -19,8 +19,8 @@ export default function FishCard({ fish, onHover }: FishCardProps) {
       style={{
         boxShadow: "var(--shadow-cockpit-border)",
       }}
-      onMouseEnter={() => onHover(fish.id.toString())}
-      onMouseLeave={() => onHover(null)}
+      onMouseEnter={() => onHover?.(fish.id.toString())}
+      onMouseLeave={() => onHover?.(null)}
     >
       {/* Seen/Unseen Status Indicator */}
       <div className="absolute top-2 left-2 flex items-center gap-1.5 z-10">
