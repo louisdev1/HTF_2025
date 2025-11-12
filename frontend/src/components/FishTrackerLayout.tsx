@@ -26,9 +26,6 @@ export default function FishTrackerLayout({ fishes, sortedFishes }: FishTrackerL
 
   return (
     <div className="w-full h-screen flex flex-col relative overflow-hidden">
-      {/* Scanline effect */}
-      <div className="fixed top-0 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--color-sonar-green)_10%,transparent)] to-transparent animate-scanline pointer-events-none z-[9999]"></div>
-
       {/* Header */}
       <div className="bg-[color-mix(in_srgb,var(--color-dark-navy)_85%,transparent)] border-2 border-panel-border shadow-[var(--shadow-cockpit)] backdrop-blur-[10px] border-b-2 border-panel-border z-10">
         {/* Top Bar */}
