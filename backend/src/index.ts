@@ -891,9 +891,9 @@ If asking to "show rare fish" or filter requests, respond with: {"action": "filt
       content: message
     });
 
-    // Call OpenRouter AI
+    // Call OpenRouter AI - Using Google's free model
     const result = await generateText({
-      model: openrouter('meta-llama/llama-3.2-3b-instruct:free'),
+      model: openrouter('google/gemini-flash-1.5'),
       messages,
       maxTokens: 500,
     });
@@ -932,6 +932,20 @@ If asking to "show rare fish" or filter requests, respond with: {"action": "filt
       return res.status(503).json({
         error: 'Cannot connect to AI service',
         details: 'Network error: Unable to reach OpenRouter API. Check your internet connection.'
+      });
+    }
+
+    if (error.statusCode === 429 || error.message?.includes('rate limit') || error.message?.includes('Too Many Requests')) {
+      return res.status(429).json({
+        error: 'Rate limit exceeded',
+        details: 'The AI service is temporarily rate-limited. Please wait a few minutes and try again.'
+      });
+    }
+
+    if (error.statusCode === 404 || error.message?.includes('No endpoints found')) {
+      return res.status(503).json({
+        error: 'AI model unavailable',
+        details: 'The AI model is temporarily unavailable. Please try again later.'
       });
     }
 
@@ -978,9 +992,9 @@ app.post('/api/identify-fish', upload.single('photo'), async (req: Request, res:
     // Create fish list for AI
     const fishList = allFish.map(f => `${f.name} (${f.scientificName}) - ${f.rarity}`).join('\n');
 
-    // Use OpenRouter AI to identify the fish
+    // Use OpenRouter AI to identify the fish - Using Google's vision model
     const result = await generateText({
-      model: openrouter('meta-llama/llama-3.2-11b-vision-instruct:free'),
+      model: openrouter('google/gemini-flash-1.5'),
       messages: [
         {
           role: 'user',
@@ -1076,6 +1090,20 @@ Be accurate and conservative with confidence scores.`
       return res.status(503).json({
         error: 'Cannot connect to AI service',
         details: 'Network error: Unable to reach OpenRouter API. Check your internet connection.'
+      });
+    }
+
+    if (error.statusCode === 429 || error.message?.includes('rate limit') || error.message?.includes('Too Many Requests')) {
+      return res.status(429).json({
+        error: 'Rate limit exceeded',
+        details: 'The AI service is temporarily rate-limited. Please wait a few minutes and try again.'
+      });
+    }
+
+    if (error.statusCode === 404 || error.message?.includes('No endpoints found')) {
+      return res.status(503).json({
+        error: 'AI model unavailable',
+        details: 'The AI model is temporarily unavailable. Please try again later.'
       });
     }
 
