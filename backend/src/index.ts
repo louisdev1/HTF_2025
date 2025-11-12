@@ -480,6 +480,322 @@ app.post('/api/seed', async (req: Request, res: Response) => {
   }
 });
 
+// ==================== ANALYTICS ENDPOINTS ====================
+
+// GET /api/analytics/timeline - Sightings over time
+app.get('/api/analytics/timeline', async (req: Request, res: Response) => {
+  try {
+    const { period = 'week' } = req.query; // week, month, year
+
+    const sightings = await prisma.fishSighting.findMany({
+      orderBy: { timestamp: 'asc' },
+      include: { fish: true }
+    });
+
+    // Group by date
+    const grouped = sightings.reduce((acc: any, sighting) => {
+      const date = new Date(sighting.timestamp).toISOString().split('T')[0];
+      if (!acc[date]) {
+        acc[date] = { date, count: 0, common: 0, rare: 0, epic: 0 };
+      }
+      acc[date].count++;
+      const rarity = sighting.fish.rarity.toLowerCase();
+      if (acc[date][rarity] !== undefined) {
+        acc[date][rarity]++;
+      }
+      return acc;
+    }, {});
+
+    res.json(Object.values(grouped));
+  } catch (error) {
+    console.error('Error fetching timeline:', error);
+    res.status(500).json({ error: 'Failed to fetch timeline' });
+  }
+});
+
+// GET /api/analytics/progress - Overall completion progress
+app.get('/api/analytics/progress', async (req: Request, res: Response) => {
+  try {
+    const totalFish = await prisma.fish.count();
+    const allFish = await prisma.fish.findMany({
+      include: { sightings: true }
+    });
+
+    const seenCount = allFish.filter(f => f.sightings.length > 0).length;
+    const byRarity = {
+      common: { total: 0, seen: 0 },
+      rare: { total: 0, seen: 0 },
+      epic: { total: 0, seen: 0 }
+    };
+
+    allFish.forEach(fish => {
+      const rarity = fish.rarity.toLowerCase();
+      if (byRarity[rarity as keyof typeof byRarity]) {
+        byRarity[rarity as keyof typeof byRarity].total++;
+        if (fish.sightings.length > 0) {
+          byRarity[rarity as keyof typeof byRarity].seen++;
+        }
+      }
+    });
+
+    res.json({
+      total: totalFish,
+      seen: seenCount,
+      unseen: totalFish - seenCount,
+      percentage: Math.round((seenCount / totalFish) * 100),
+      byRarity
+    });
+  } catch (error) {
+    console.error('Error fetching progress:', error);
+    res.status(500).json({ error: 'Failed to fetch progress' });
+  }
+});
+
+// GET /api/analytics/locations - Sighting locations heatmap
+app.get('/api/analytics/locations', async (req: Request, res: Response) => {
+  try {
+    const sightings = await prisma.fishSighting.findMany({
+      select: {
+        latitude: true,
+        longitude: true,
+        location: true,
+        fish: { select: { name: true, rarity: true } }
+      }
+    });
+
+    res.json(sightings);
+  } catch (error) {
+    console.error('Error fetching locations:', error);
+    res.status(500).json({ error: 'Failed to fetch locations' });
+  }
+});
+
+// ==================== ACHIEVEMENT ENDPOINTS ====================
+
+// GET /api/achievements - Get all achievements
+app.get('/api/achievements', async (req: Request, res: Response) => {
+  try {
+    const achievements = await prisma.achievement.findMany({
+      orderBy: [{ category: 'asc' }, { threshold: 'asc' }]
+    });
+    res.json(achievements);
+  } catch (error) {
+    console.error('Error fetching achievements:', error);
+    res.status(500).json({ error: 'Failed to fetch achievements' });
+  }
+});
+
+// GET /api/users/:userId/achievements - Get user's achievements
+app.get('/api/users/:userId/achievements', async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+
+    const userAchievements = await prisma.userAchievement.findMany({
+      where: { userId: parseInt(userId) },
+      include: { achievement: true },
+      orderBy: { unlockedAt: 'desc' }
+    });
+
+    res.json(userAchievements);
+  } catch (error) {
+    console.error('Error fetching user achievements:', error);
+    res.status(500).json({ error: 'Failed to fetch user achievements' });
+  }
+});
+
+// ==================== LEADERBOARD ENDPOINTS ====================
+
+// GET /api/leaderboard - Get leaderboard
+app.get('/api/leaderboard', async (req: Request, res: Response) => {
+  try {
+    const { period = 'alltime', limit = 100 } = req.query;
+
+    // For demo purposes, generate mock leaderboard data
+    // In production, this would query actual user data
+    const mockUsers = [
+      { id: 1, username: 'MarineExplorer', displayName: 'Marine Explorer', points: 2500, rank: 1, sightingCount: 25, avatarUrl: null },
+      { id: 2, username: 'OceanMaster', displayName: 'Ocean Master', points: 2200, rank: 2, sightingCount: 23, avatarUrl: null },
+      { id: 3, username: 'DeepDiver', displayName: 'Deep Diver', points: 1900, rank: 3, sightingCount: 20, avatarUrl: null },
+      { id: 4, username: 'FishWatcher', displayName: 'Fish Watcher', points: 1600, rank: 4, sightingCount: 18, avatarUrl: null },
+      { id: 5, username: 'CoralSeeker', displayName: 'Coral Seeker', points: 1400, rank: 5, sightingCount: 16, avatarUrl: null },
+    ];
+
+    res.json(mockUsers);
+  } catch (error) {
+    console.error('Error fetching leaderboard:', error);
+    res.status(500).json({ error: 'Failed to fetch leaderboard' });
+  }
+});
+
+// ==================== TEMPERATURE ENDPOINTS ====================
+
+// GET /api/temperature - Get temperature readings
+app.get('/api/temperature', async (req: Request, res: Response) => {
+  try {
+    const { minLat, maxLat, minLon, maxLon, depth } = req.query;
+
+    let where: any = {};
+
+    if (minLat && maxLat && minLon && maxLon) {
+      where = {
+        latitude: { gte: parseFloat(minLat as string), lte: parseFloat(maxLat as string) },
+        longitude: { gte: parseFloat(minLon as string), lte: parseFloat(maxLon as string) }
+      };
+    }
+
+    if (depth) {
+      where.depth = parseInt(depth as string);
+    }
+
+    const readings = await prisma.temperatureReading.findMany({
+      where,
+      orderBy: { timestamp: 'desc' },
+      take: 1000
+    });
+
+    res.json(readings);
+  } catch (error) {
+    console.error('Error fetching temperature data:', error);
+    res.status(500).json({ error: 'Failed to fetch temperature data' });
+  }
+});
+
+// ==================== ACTIVITY FEED ENDPOINTS ====================
+
+// GET /api/activity - Get global activity feed
+app.get('/api/activity', async (req: Request, res: Response) => {
+  try {
+    const { limit = 50, userId } = req.query;
+
+    // For demo purposes, generate mock activity data
+    const activities = [
+      {
+        id: 1,
+        userId: 1,
+        type: 'sighting',
+        message: 'spotted a Great White Shark',
+        user: { username: 'MarineExplorer', displayName: 'Marine Explorer', avatarUrl: null },
+        sighting: { fish: { name: 'Great White Shark', rarity: 'Epic' } },
+        createdAt: new Date(Date.now() - 1000 * 60 * 5).toISOString()
+      },
+      {
+        id: 2,
+        userId: 2,
+        type: 'achievement',
+        message: 'unlocked "Ocean Master" achievement',
+        user: { username: 'OceanMaster', displayName: 'Ocean Master', avatarUrl: null },
+        createdAt: new Date(Date.now() - 1000 * 60 * 15).toISOString()
+      },
+      {
+        id: 3,
+        userId: 3,
+        type: 'sighting',
+        message: 'spotted a Manta Ray',
+        user: { username: 'DeepDiver', displayName: 'Deep Diver', avatarUrl: null },
+        sighting: { fish: { name: 'Manta Ray', rarity: 'Rare' } },
+        createdAt: new Date(Date.now() - 1000 * 60 * 30).toISOString()
+      }
+    ];
+
+    res.json(activities);
+  } catch (error) {
+    console.error('Error fetching activity feed:', error);
+    res.status(500).json({ error: 'Failed to fetch activity feed' });
+  }
+});
+
+// ==================== FRIEND SYSTEM ENDPOINTS ====================
+
+// GET /api/friends - Get user's friends
+app.get('/api/friends', async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.query;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'userId is required' });
+    }
+
+    // For demo purposes, return mock friends data
+    const friends = [
+      { id: 2, username: 'OceanMaster', displayName: 'Ocean Master', points: 2200, avatarUrl: null, status: 'accepted' },
+      { id: 3, username: 'DeepDiver', displayName: 'Deep Diver', points: 1900, avatarUrl: null, status: 'accepted' },
+    ];
+
+    res.json(friends);
+  } catch (error) {
+    console.error('Error fetching friends:', error);
+    res.status(500).json({ error: 'Failed to fetch friends' });
+  }
+});
+
+// POST /api/friends/request - Send friend request
+app.post('/api/friends/request', async (req: Request, res: Response) => {
+  try {
+    const { senderId, receiverId } = req.body;
+
+    if (!senderId || !receiverId) {
+      return res.status(400).json({ error: 'senderId and receiverId are required' });
+    }
+
+    // For demo purposes, return success
+    res.json({ message: 'Friend request sent', status: 'pending' });
+  } catch (error) {
+    console.error('Error sending friend request:', error);
+    res.status(500).json({ error: 'Failed to send friend request' });
+  }
+});
+
+// ==================== NOTIFICATION ENDPOINTS ====================
+
+// GET /api/notifications - Get user notifications
+app.get('/api/notifications', async (req: Request, res: Response) => {
+  try {
+    const { userId, unreadOnly } = req.query;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'userId is required' });
+    }
+
+    // For demo purposes, return mock notifications
+    const notifications = [
+      {
+        id: 1,
+        type: 'achievement',
+        message: 'You unlocked "First Catch" achievement!',
+        isRead: false,
+        link: '/achievements',
+        createdAt: new Date(Date.now() - 1000 * 60 * 10).toISOString()
+      },
+      {
+        id: 2,
+        type: 'friend_request',
+        message: 'DeepDiver sent you a friend request',
+        isRead: false,
+        link: '/friends',
+        createdAt: new Date(Date.now() - 1000 * 60 * 30).toISOString()
+      }
+    ];
+
+    res.json(notifications);
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    res.status(500).json({ error: 'Failed to fetch notifications' });
+  }
+});
+
+// PATCH /api/notifications/:id/read - Mark notification as read
+app.patch('/api/notifications/:id/read', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    // For demo purposes, return success
+    res.json({ message: 'Notification marked as read' });
+  } catch (error) {
+    console.error('Error marking notification as read:', error);
+    res.status(500).json({ error: 'Failed to mark notification as read' });
+  }
+});
+
 // Start server
 app.listen(PORT, () => {
   console.log(`🐠 Fishy Dex API running on http://localhost:${PORT}`);

@@ -15,6 +15,8 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Fishy Dex - Marine Monitoring System",
   description: "Global fish tracking and monitoring system",
+  manifest: "/manifest.json",
+  themeColor: "#14ffec",
 };
 
 export default function RootLayout({
