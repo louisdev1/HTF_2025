@@ -6,6 +6,8 @@ import AddSightingModal from "./AddSightingModal";
 import AnalyticsDashboard from "./AnalyticsDashboard";
 import Leaderboard from "./Leaderboard";
 import Achievements from "./Achievements";
+import AIChatAssistant from "./AIChatAssistant";
+import FishIdentifier from "./FishIdentifier";
 import { Fish } from "@/types/fish";
 
 interface FishTrackerLayoutProps {
@@ -17,11 +19,23 @@ type ViewType = "tracker" | "analytics" | "leaderboard" | "achievements";
 
 export default function FishTrackerLayout({ fishes, sortedFishes }: FishTrackerLayoutProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isIdentifierOpen, setIsIdentifierOpen] = useState(false);
   const [key, setKey] = useState(0);
   const [activeView, setActiveView] = useState<ViewType>("tracker");
 
   const handleSightingSuccess = () => {
     window.location.reload();
+  };
+
+  const handleChatAction = (action: string, data: any) => {
+    if (action === 'log_sighting') {
+      setIsChatOpen(false);
+      setIsModalOpen(true);
+    } else if (action === 'filter_fish') {
+      // Could trigger filter in the tracker view
+      console.log('Filter requested:', data);
+    }
   };
 
   return (
@@ -39,6 +53,22 @@ export default function FishTrackerLayout({ fishes, sortedFishes }: FishTrackerL
             </div>
           </div>
           <div className="flex items-center gap-4 text-xs font-mono">
+            <button
+              onClick={() => setIsChatOpen(true)}
+              className="px-4 py-2 bg-purple-600 text-white font-bold border-2 border-purple-500 hover:bg-purple-700 transition-all"
+              style={{ boxShadow: "0 0 15px rgba(168, 85, 247, 0.4)" }}
+              title="AI Chat Assistant"
+            >
+              🤖 AI CHAT
+            </button>
+            <button
+              onClick={() => setIsIdentifierOpen(true)}
+              className="px-4 py-2 bg-blue-600 text-white font-bold border-2 border-blue-500 hover:bg-blue-700 transition-all"
+              style={{ boxShadow: "0 0 15px rgba(59, 130, 246, 0.4)" }}
+              title="AI Fish Identifier"
+            >
+              🔍 IDENTIFY
+            </button>
             <button
               onClick={() => setIsModalOpen(true)}
               className="px-4 py-2 bg-sonar-green text-deep-ocean font-bold border-2 border-sonar-green hover:bg-opacity-90 transition-all"
@@ -104,6 +134,25 @@ export default function FishTrackerLayout({ fishes, sortedFishes }: FishTrackerL
         onClose={() => setIsModalOpen(false)}
         onSuccess={handleSightingSuccess}
       />
+
+      {/* AI Chat Assistant Modal */}
+      {isChatOpen && (
+        <AIChatAssistant
+          onClose={() => setIsChatOpen(false)}
+          onAction={handleChatAction}
+        />
+      )}
+
+      {/* Fish Identifier Modal */}
+      {isIdentifierOpen && (
+        <FishIdentifier
+          onClose={() => setIsIdentifierOpen(false)}
+          onIdentified={(result) => {
+            console.log('Fish identified:', result);
+            // Could open add sighting modal with pre-filled fish if matched
+          }}
+        />
+      )}
     </div>
   );
 }

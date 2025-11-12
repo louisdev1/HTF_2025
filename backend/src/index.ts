@@ -796,6 +796,249 @@ app.patch('/api/notifications/:id/read', async (req: Request, res: Response) => 
   }
 });
 
+// ==================== AI CHAT ASSISTANT ENDPOINT ====================
+
+// POST /api/chat - AI Chat Assistant
+app.post('/api/chat', async (req: Request, res: Response) => {
+  try {
+    const { message, conversationHistory } = req.body;
+
+    if (!message) {
+      return res.status(400).json({ error: 'Message is required' });
+    }
+
+    if (!process.env.OPENROUTER_API_KEY) {
+      return res.status(500).json({ error: 'AI service not configured' });
+    }
+
+    // Get all fish data for context
+    const allFish = await prisma.fish.findMany({
+      include: {
+        sightings: {
+          orderBy: { timestamp: 'desc' },
+          take: 5
+        }
+      }
+    });
+
+    // Get recent sightings for context
+    const recentSightings = await prisma.fishSighting.findMany({
+      include: { fish: true },
+      orderBy: { timestamp: 'desc' },
+      take: 10
+    });
+
+    // Build context about fish database
+    const fishContext = allFish.map(f => ({
+      name: f.name,
+      scientificName: f.scientificName,
+      description: f.description,
+      habitat: f.habitat,
+      rarity: f.rarity,
+      size: f.size,
+      depth: `${f.minDepth}-${f.maxDepth}m`,
+      sightingCount: f.sightings.length
+    }));
+
+    // Build system prompt
+    const systemPrompt = `You are an AI marine biology assistant for Fishy Dex, a fish tracking application. You help users learn about fish species, find diving locations, and track their sightings.
+
+Your knowledge base includes ${allFish.length} fish species. You can:
+1. Answer questions about specific fish species (characteristics, habitat, size, rarity)
+2. Suggest where to find certain fish based on their habitat
+3. Provide interesting facts about marine life
+4. Help users understand their sighting statistics
+5. Respond to voice commands like "log a sighting" or "show me rare fish"
+
+Fish database: ${JSON.stringify(fishContext, null, 2)}
+
+Recent sightings: ${recentSightings.map(s => `${s.fish.name} at ${s.location}`).join(', ')}
+
+Be friendly, informative, and enthusiastic about marine life! Keep responses concise (2-3 sentences max unless detailed explanation is needed).
+
+If the user asks to "log a sighting" or similar action commands, respond with a JSON object: {"action": "log_sighting", "message": "your response"}
+If asking to "show rare fish" or filter requests, respond with: {"action": "filter_fish", "filter": "rare", "message": "your response"}`;
+
+    // Build messages array
+    const messages: any[] = [
+      {
+        role: 'system',
+        content: systemPrompt
+      }
+    ];
+
+    // Add conversation history if provided
+    if (conversationHistory && Array.isArray(conversationHistory)) {
+      messages.push(...conversationHistory);
+    }
+
+    // Add current message
+    messages.push({
+      role: 'user',
+      content: message
+    });
+
+    // Call OpenRouter AI
+    const result = await generateText({
+      model: openrouter('meta-llama/llama-3.2-3b-instruct:free'),
+      messages,
+      maxTokens: 500,
+    });
+
+    // Parse response for actions
+    let response = result.text;
+    let action = null;
+    let actionData = null;
+
+    // Check if response contains action JSON
+    try {
+      if (response.includes('"action"')) {
+        const jsonMatch = response.match(/\{[^}]*"action"[^}]*\}/);
+        if (jsonMatch) {
+          const actionObj = JSON.parse(jsonMatch[0]);
+          action = actionObj.action;
+          actionData = actionObj;
+          response = actionObj.message || response;
+        }
+      }
+    } catch (parseError) {
+      // If JSON parsing fails, just use the text response
+    }
+
+    res.json({
+      response,
+      action,
+      actionData,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error in AI chat:', error);
+    res.status(500).json({ error: 'Failed to process chat message' });
+  }
+});
+
+// ==================== AI FISH IDENTIFICATION ENDPOINT ====================
+
+// POST /api/identify-fish - AI Fish Identification
+app.post('/api/identify-fish', upload.single('photo'), async (req: Request, res: Response) => {
+  try {
+    const file = req.file;
+
+    if (!file) {
+      return res.status(400).json({ error: 'Photo is required' });
+    }
+
+    if (!process.env.OPENROUTER_API_KEY) {
+      return res.status(500).json({ error: 'AI service not configured' });
+    }
+
+    // Get all fish for matching
+    const allFish = await prisma.fish.findMany();
+
+    // Read the image file as base64
+    const imageBuffer = fs.readFileSync(file.path);
+    const base64Image = imageBuffer.toString('base64');
+    const mimeType = file.mimetype;
+
+    // Create fish list for AI
+    const fishList = allFish.map(f => `${f.name} (${f.scientificName}) - ${f.rarity}`).join('\n');
+
+    // Use OpenRouter AI to identify the fish
+    const result = await generateText({
+      model: openrouter('meta-llama/llama-3.2-11b-vision-instruct:free'),
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: `You are a marine biology expert. Analyze this image and identify the fish species.
+
+Our fish catalog includes:
+${fishList}
+
+Respond with ONLY a JSON object in this exact format:
+{
+  "identified": true/false,
+  "fishName": "exact name from catalog or best guess",
+  "scientificName": "scientific name if known",
+  "confidence": 0.0-1.0,
+  "matchedCatalog": true/false (true if it matches our catalog),
+  "catalogFishId": null or the ID if matched,
+  "reasoning": "brief explanation of identification",
+  "characteristics": ["list", "of", "visible", "features"]
+}
+
+Be accurate and conservative with confidence scores.`
+            },
+            {
+              type: 'image',
+              image: `data:${mimeType};base64,${base64Image}`
+            }
+          ]
+        }
+      ],
+      maxTokens: 500,
+    });
+
+    // Parse AI response
+    let identification;
+    try {
+      const jsonMatch = result.text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        identification = JSON.parse(jsonMatch[0]);
+      } else {
+        throw new Error('No JSON found in response');
+      }
+    } catch (parseError) {
+      console.error('Failed to parse AI response:', result.text);
+      identification = {
+        identified: false,
+        fishName: 'Unknown',
+        confidence: 0,
+        matchedCatalog: false,
+        reasoning: 'Failed to identify fish from image',
+        characteristics: []
+      };
+    }
+
+    // Try to match with our catalog
+    let matchedFish = null;
+    if (identification.fishName) {
+      const fishNameLower = identification.fishName.toLowerCase();
+      matchedFish = allFish.find(f =>
+        f.name.toLowerCase().includes(fishNameLower) ||
+        fishNameLower.includes(f.name.toLowerCase()) ||
+        f.scientificName.toLowerCase() === (identification.scientificName || '').toLowerCase()
+      );
+
+      if (matchedFish) {
+        identification.matchedCatalog = true;
+        identification.catalogFishId = matchedFish.id;
+        identification.catalogFish = {
+          id: matchedFish.id,
+          name: matchedFish.name,
+          scientificName: matchedFish.scientificName,
+          rarity: matchedFish.rarity,
+          habitat: matchedFish.habitat,
+          imageUrl: matchedFish.imageUrl
+        };
+      }
+    }
+
+    // Clean up the uploaded file
+    fs.unlinkSync(file.path);
+
+    res.json({
+      ...identification,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error identifying fish:', error);
+    res.status(500).json({ error: 'Failed to identify fish' });
+  }
+});
+
 // Start server
 app.listen(PORT, () => {
   console.log(`🐠 Fishy Dex API running on http://localhost:${PORT}`);

@@ -68,3 +68,77 @@ export const fetchFishes = async (): Promise<Fish[]> => {
     throw error;
   }
 };
+
+// AI Chat Assistant API
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface ChatResponse {
+  response: string;
+  action?: string | null;
+  actionData?: any;
+  timestamp: string;
+}
+
+export const sendChatMessage = async (
+  message: string,
+  conversationHistory?: ChatMessage[]
+): Promise<ChatResponse> => {
+  const response = await fetch(`${API_BASE_URL}/api/chat`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      message,
+      conversationHistory,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+  }
+
+  return response.json();
+};
+
+// AI Fish Identification API
+export interface FishIdentification {
+  identified: boolean;
+  fishName: string;
+  scientificName?: string;
+  confidence: number;
+  matchedCatalog: boolean;
+  catalogFishId?: number | null;
+  catalogFish?: {
+    id: number;
+    name: string;
+    scientificName: string;
+    rarity: string;
+    habitat: string;
+    imageUrl: string;
+  };
+  reasoning: string;
+  characteristics: string[];
+  timestamp: string;
+}
+
+export const identifyFish = async (photo: File): Promise<FishIdentification> => {
+  const formData = new FormData();
+  formData.append("photo", photo);
+
+  const response = await fetch(`${API_BASE_URL}/api/identify-fish`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+  }
+
+  return response.json();
+};
