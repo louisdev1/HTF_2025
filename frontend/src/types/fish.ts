@@ -5,6 +5,8 @@ export interface Fish {
   imageUrl: string;
   rarity: string;
   habitat: string;
+  seen?: boolean;
+  sightingCount?: number;
   sightings?: FishSighting[];
   latestSighting?: {
     latitude: number;
@@ -21,6 +23,9 @@ export interface FishSighting {
   location: string;
   timestamp: string;
   seen: boolean;
+  photoUrl?: string;
+  aiConfidence?: number;
+  verified?: boolean;
 }
 
 export type Rarity = "COMMON" | "RARE" | "EPIC";

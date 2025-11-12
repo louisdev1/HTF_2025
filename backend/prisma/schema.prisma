@@ -24,15 +24,18 @@ model Fish {
 }
 
 model FishSighting {
-  id        Int      @id @default(autoincrement())
-  fishId    Int
-  latitude  Float
-  longitude Float
-  location  String
-  timestamp DateTime @default(now())
-  seen      Boolean  @default(true)
-  fish      Fish     @relation(fields: [fishId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
+  id            Int      @id @default(autoincrement())
+  fishId        Int
+  latitude      Float
+  longitude     Float
+  location      String
+  timestamp     DateTime @default(now())
+  seen          Boolean  @default(true)
+  photoUrl      String?  // Photo evidence URL
+  aiConfidence  Float?   // AI confidence score (0-1)
+  verified      Boolean  @default(false) // AI verified
+  fish          Fish     @relation(fields: [fishId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
 }
 
 model DivingCenter {

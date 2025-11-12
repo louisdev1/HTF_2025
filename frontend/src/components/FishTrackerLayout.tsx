@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import FishTrackerClient from "./FishTrackerClient";
+import AddSightingModal from "./AddSightingModal";
 import { Fish } from "@/types/fish";
 
 interface FishTrackerLayoutProps {
@@ -9,6 +11,14 @@ interface FishTrackerLayoutProps {
 }
 
 export default function FishTrackerLayout({ fishes, sortedFishes }: FishTrackerLayoutProps) {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [key, setKey] = useState(0); // For refreshing after new sighting
+
+  const handleSightingSuccess = () => {
+    // Refresh the page to show new data
+    window.location.reload();
+  };
+
   return (
     <div className="w-full h-screen flex flex-col relative overflow-hidden">
       {/* Scanline effect */}
@@ -25,6 +35,13 @@ export default function FishTrackerLayout({ fishes, sortedFishes }: FishTrackerL
           </div>
         </div>
         <div className="flex items-center gap-4 text-xs font-mono">
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="px-4 py-2 bg-sonar-green text-deep-ocean font-bold border-2 border-sonar-green hover:bg-opacity-90 transition-all"
+            style={{ boxShadow: "0 0 15px var(--color-sonar-green)" }}
+          >
+            + ADD SIGHTING
+          </button>
           <div className="border border-panel-border px-3 py-1 rounded" style={{ boxShadow: 'var(--shadow-cockpit-border)' }}>
             <span className="text-sonar-green">STATUS:</span>
             <span className="text-sonar-green ml-2 font-bold">OPERATIONAL</span>
@@ -39,7 +56,15 @@ export default function FishTrackerLayout({ fishes, sortedFishes }: FishTrackerL
       </div>
 
       {/* Map and Fish List */}
-      <FishTrackerClient fishes={fishes} sortedFishes={sortedFishes} />
+      <FishTrackerClient key={key} fishes={fishes} sortedFishes={sortedFishes} />
+
+      {/* Add Sighting Modal */}
+      <AddSightingModal
+        fishes={fishes}
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={handleSightingSuccess}
+      />
     </div>
   );
 }
