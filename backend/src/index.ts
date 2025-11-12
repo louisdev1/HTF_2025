@@ -1084,6 +1084,11 @@ Be accurate and conservative with confidence scores.`
     });
   } catch (error: any) {
     console.error('Error identifying fish:', error);
+    console.error('Error details:', {
+      message: error.message,
+      statusCode: error.statusCode,
+      responseBody: error.responseBody
+    });
 
     // Provide more helpful error messages
     if (error.message?.includes('getaddrinfo') || error.message?.includes('ECONNREFUSED')) {
@@ -1107,6 +1112,13 @@ Be accurate and conservative with confidence scores.`
       });
     }
 
+    if (error.statusCode === 400 || error.message?.includes('invalid') || error.message?.includes('format')) {
+      return res.status(400).json({
+        error: 'Invalid image format',
+        details: 'The uploaded image format is not supported. Please use JPEG, PNG, or WebP.'
+      });
+    }
+
     if (error.message?.includes('API key') || error.statusCode === 401) {
       return res.status(401).json({
         error: 'Invalid API key',
@@ -1116,7 +1128,8 @@ Be accurate and conservative with confidence scores.`
 
     res.status(500).json({
       error: 'Failed to identify fish',
-      details: error.message || 'Unknown error occurred'
+      details: error.message || 'Unknown error occurred',
+      debug: process.env.NODE_ENV === 'development' ? error.responseBody : undefined
     });
   }
 });
