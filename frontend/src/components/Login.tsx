@@ -17,17 +17,13 @@ export default function Login({ onLoginSuccess }: LoginProps) {
   const [createPassword, setCreatePassword] = useState("");
   const [message, setMessage] = useState("");
 
-  const VALID_EMAIL = "louis.devdev@gmail.com";
-  const VALID_PASSWORD = "1234";
-
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (email === VALID_EMAIL && password === VALID_PASSWORD) {
+    // Accept any email and password - just needs to be filled in
+    if (email && password) {
       localStorage.setItem("fishyDexAuthenticated", "true");
       onLoginSuccess();
-    } else {
-      setShowOptions(true);
     }
   };
 
