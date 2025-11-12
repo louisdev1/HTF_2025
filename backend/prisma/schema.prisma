@@ -1,0 +1,21 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Fish {
+  id          Int      @id @default(autoincrement())
+  name        String
+  scientificName String
+  description String
+  imageUrl    String
+  habitat     String
+  size        String
+  seen        Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
