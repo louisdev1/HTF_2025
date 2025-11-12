@@ -18,13 +18,17 @@ export const createSighting = async (
     formData.append("photo", photo);
   }
 
+  console.log('Submitting sighting:', { fishId, latitude, longitude, location });
+
   const response = await fetch(`${API_BASE_URL}/api/sightings`, {
     method: "POST",
     body: formData,
   });
 
   if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
+    const errorText = await response.text();
+    console.error('API Error:', response.status, errorText);
+    throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
   }
 
   return response.json();
