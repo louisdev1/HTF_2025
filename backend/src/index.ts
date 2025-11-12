@@ -15,6 +15,16 @@ const app = express();
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 5555;
 
+// Log environment variable status (for debugging)
+console.log('🔧 Environment check:');
+console.log('  PORT:', PORT);
+console.log('  OPENROUTER_API_KEY:', process.env.OPENROUTER_API_KEY ? '✅ Loaded' : '❌ NOT FOUND');
+if (!process.env.OPENROUTER_API_KEY) {
+  console.warn('⚠️  WARNING: OPENROUTER_API_KEY is not set! AI features will not work.');
+  console.warn('⚠️  Please create a .env file in the backend folder with:');
+  console.warn('⚠️  OPENROUTER_API_KEY=your-api-key-here');
+}
+
 // Create uploads directory if it doesn't exist
 const uploadsDir = path.join(__dirname, '../uploads');
 if (!fs.existsSync(uploadsDir)) {
@@ -808,7 +818,10 @@ app.post('/api/chat', async (req: Request, res: Response) => {
     }
 
     if (!process.env.OPENROUTER_API_KEY) {
-      return res.status(500).json({ error: 'AI service not configured' });
+      return res.status(500).json({
+        error: 'AI service not configured',
+        details: 'OPENROUTER_API_KEY environment variable is missing. Please add it to your .env file in the backend folder.'
+      });
     }
 
     // Get all fish data for context
@@ -911,9 +924,28 @@ If asking to "show rare fish" or filter requests, respond with: {"action": "filt
       actionData,
       timestamp: new Date().toISOString()
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in AI chat:', error);
-    res.status(500).json({ error: 'Failed to process chat message' });
+
+    // Provide more helpful error messages
+    if (error.message?.includes('getaddrinfo') || error.message?.includes('ECONNREFUSED')) {
+      return res.status(503).json({
+        error: 'Cannot connect to AI service',
+        details: 'Network error: Unable to reach OpenRouter API. Check your internet connection.'
+      });
+    }
+
+    if (error.message?.includes('API key') || error.statusCode === 401) {
+      return res.status(401).json({
+        error: 'Invalid API key',
+        details: 'The OPENROUTER_API_KEY in your .env file is invalid or expired.'
+      });
+    }
+
+    res.status(500).json({
+      error: 'Failed to process chat message',
+      details: error.message || 'Unknown error occurred'
+    });
   }
 });
 
@@ -929,7 +961,10 @@ app.post('/api/identify-fish', upload.single('photo'), async (req: Request, res:
     }
 
     if (!process.env.OPENROUTER_API_KEY) {
-      return res.status(500).json({ error: 'AI service not configured' });
+      return res.status(500).json({
+        error: 'AI service not configured',
+        details: 'OPENROUTER_API_KEY environment variable is missing. Please add it to your .env file in the backend folder.'
+      });
     }
 
     // Get all fish for matching
@@ -1033,9 +1068,28 @@ Be accurate and conservative with confidence scores.`
       ...identification,
       timestamp: new Date().toISOString()
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error identifying fish:', error);
-    res.status(500).json({ error: 'Failed to identify fish' });
+
+    // Provide more helpful error messages
+    if (error.message?.includes('getaddrinfo') || error.message?.includes('ECONNREFUSED')) {
+      return res.status(503).json({
+        error: 'Cannot connect to AI service',
+        details: 'Network error: Unable to reach OpenRouter API. Check your internet connection.'
+      });
+    }
+
+    if (error.message?.includes('API key') || error.statusCode === 401) {
+      return res.status(401).json({
+        error: 'Invalid API key',
+        details: 'The OPENROUTER_API_KEY in your .env file is invalid or expired.'
+      });
+    }
+
+    res.status(500).json({
+      error: 'Failed to identify fish',
+      details: error.message || 'Unknown error occurred'
+    });
   }
 });
 
