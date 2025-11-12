@@ -19,7 +19,7 @@ export default function FishCard({ fish, onHover }: FishCardProps) {
       style={{
         boxShadow: "var(--shadow-cockpit-border)",
       }}
-      onMouseEnter={() => onHover?.(fish.id.toString())}
+      onMouseEnter={() => onHover?.(fish.id?.toString() ?? null)}
       onMouseLeave={() => onHover?.(null)}
     >
       {/* Seen/Unseen Status Indicator */}

@@ -40,7 +40,7 @@ export const fetchFishes = async (): Promise<Fish[]> => {
 
     // Transform backend data to match Fish interface
     return data.map((fish: any) => ({
-      id: fish.id.toString(),
+      id: fish.id,
       name: fish.name,
       scientificName: fish.scientificName,
       imageUrl: fish.imageUrl,
