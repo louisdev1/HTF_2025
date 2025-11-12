@@ -36,6 +36,9 @@ export default function FishIdentifier({ onClose, onIdentified }: FishIdentifier
 
     setIsIdentifying(true);
     try {
+      // Add 3 second delay to simulate AI processing
+      await new Promise(resolve => setTimeout(resolve, 3000));
+
       const identification = await identifyFish(selectedFile);
       setResult(identification);
 
