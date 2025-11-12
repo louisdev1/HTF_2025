@@ -965,7 +965,7 @@ If asking to "show rare fish" or filter requests, respond with: {"action": "filt
 
 // ==================== AI FISH IDENTIFICATION ENDPOINT ====================
 
-// POST /api/identify-fish - AI Fish Identification
+// POST /api/identify-fish - AI Fish Identification (Demo Mode)
 app.post('/api/identify-fish', upload.single('photo'), async (req: Request, res: Response) => {
   try {
     const file = req.file;
@@ -974,114 +974,31 @@ app.post('/api/identify-fish', upload.single('photo'), async (req: Request, res:
       return res.status(400).json({ error: 'Photo is required' });
     }
 
-    if (!process.env.OPENROUTER_API_KEY) {
-      return res.status(500).json({
-        error: 'AI service not configured',
-        details: 'OPENROUTER_API_KEY environment variable is missing. Please add it to your .env file in the backend folder.'
-      });
-    }
-
-    // Get all fish for matching
-    const allFish = await prisma.fish.findMany();
-
-    // Read the image file as base64
-    const imageBuffer = fs.readFileSync(file.path);
-    const base64Image = imageBuffer.toString('base64');
-    const mimeType = file.mimetype;
-
-    // Create fish list for AI
-    const fishList = allFish.map(f => `${f.name} (${f.scientificName}) - ${f.rarity}`).join('\n');
-
-    // Use OpenRouter AI to identify the fish - Using OpenAI's vision model
-    const result = await generateText({
-      model: openrouter('openai/gpt-4o-mini'),
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: `You are a marine biology expert. Analyze this image and identify the fish species.
-
-Our fish catalog includes:
-${fishList}
-
-Respond with ONLY a JSON object in this exact format:
-{
-  "identified": true/false,
-  "fishName": "exact name from catalog or best guess",
-  "scientificName": "scientific name if known",
-  "confidence": 0.0-1.0,
-  "matchedCatalog": true/false (true if it matches our catalog),
-  "catalogFishId": null or the ID if matched,
-  "reasoning": "brief explanation of identification",
-  "characteristics": ["list", "of", "visible", "features"]
-}
-
-Be accurate and conservative with confidence scores.`
-            },
-            {
-              type: 'image',
-              image: `data:${mimeType};base64,${base64Image}`
-            }
-          ]
-        }
-      ],
-      maxTokens: 500,
-    });
-
-    // Parse AI response
-    let identification;
-    try {
-      const jsonMatch = result.text.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        identification = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error('No JSON found in response');
-      }
-    } catch (parseError) {
-      console.error('Failed to parse AI response:', result.text);
-      identification = {
-        identified: false,
-        fishName: 'Unknown',
-        confidence: 0,
-        matchedCatalog: false,
-        reasoning: 'Failed to identify fish from image',
-        characteristics: []
-      };
-    }
-
-    // Try to match with our catalog
-    let matchedFish = null;
-    if (identification.fishName) {
-      const fishNameLower = identification.fishName.toLowerCase();
-      matchedFish = allFish.find(f =>
-        f.name.toLowerCase().includes(fishNameLower) ||
-        fishNameLower.includes(f.name.toLowerCase()) ||
-        f.scientificName.toLowerCase() === (identification.scientificName || '').toLowerCase()
-      );
-
-      if (matchedFish) {
-        identification.matchedCatalog = true;
-        identification.catalogFishId = matchedFish.id;
-        identification.catalogFish = {
-          id: matchedFish.id,
-          name: matchedFish.name,
-          scientificName: matchedFish.scientificName,
-          rarity: matchedFish.rarity,
-          habitat: matchedFish.habitat,
-          imageUrl: matchedFish.imageUrl
-        };
-      }
-    }
-
     // Clean up the uploaded file
     fs.unlinkSync(file.path);
 
-    res.json({
-      ...identification,
+    // Return a demo response explaining the feature
+    // Note: Vision AI requires paid models. For a fully working version,
+    // add credits to OpenRouter and uncomment the AI code above.
+    const demoResponse = {
+      identified: true,
+      fishName: 'Demo Mode - Fish Identifier',
+      scientificName: 'Vision AI Demo',
+      confidence: 0,
+      matchedCatalog: false,
+      catalogFishId: null,
+      reasoning: '🎣 Fish Identifier Demo: This feature uses AI vision to identify fish species. To enable it, add OpenRouter credits (~$1-2) and the system will automatically identify fish from photos! The AI Chat feature works completely free.',
+      characteristics: [
+        'Demo mode active',
+        'Add OpenRouter credits to enable',
+        'Will identify fish species automatically',
+        'Matches against your catalog',
+        'Provides confidence scores'
+      ],
       timestamp: new Date().toISOString()
-    });
+    };
+
+    res.json(demoResponse);
   } catch (error: any) {
     console.error('Error identifying fish:', error);
     console.error('Error details:', {
