@@ -4,18 +4,42 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = "file:./dev.db"
+  url      = env("DATABASE_URL")
 }
 
 model Fish {
-  id          Int      @id @default(autoincrement())
-  name        String
+  id             Int            @id @default(autoincrement())
+  name           String
   scientificName String
-  description String
-  imageUrl    String
-  habitat     String
-  size        String
-  seen        Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  description    String
+  imageUrl       String
+  rarity         String         @default("Common") // Common, Rare, Epic
+  habitat        String
+  size           String
+  minDepth       Int            @default(0)
+  maxDepth       Int            @default(100)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  sightings      FishSighting[]
+}
+
+model FishSighting {
+  id        Int      @id @default(autoincrement())
+  fishId    Int
+  latitude  Float
+  longitude Float
+  location  String
+  timestamp DateTime @default(now())
+  seen      Boolean  @default(true)
+  fish      Fish     @relation(fields: [fishId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
+
+model DivingCenter {
+  id        Int      @id @default(autoincrement())
+  name      String
+  latitude  Float
+  longitude Float
+  region    String
+  createdAt DateTime @default(now())
 }

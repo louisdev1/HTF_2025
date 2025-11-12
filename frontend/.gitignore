@@ -5,11 +5,11 @@ node_modules/
 .next/
 out/
 
-# Build output
+# Build
 build/
 dist/
 
-# Environment variables
+# Environment
 .env
 .env*.local
 
@@ -25,7 +25,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# OS files
+# OS
 .DS_Store
 Thumbs.db
 
@@ -33,4 +33,3 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
-*.swo
