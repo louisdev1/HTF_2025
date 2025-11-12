@@ -891,9 +891,9 @@ If asking to "show rare fish" or filter requests, respond with: {"action": "filt
       content: message
     });
 
-    // Call OpenRouter AI - Using Google's free model
+    // Call OpenRouter AI - Using Qwen's free model (supports text)
     const result = await generateText({
-      model: openrouter('google/gemini-flash-1.5'),
+      model: openrouter('qwen/qwen-2-7b-instruct:free'),
       messages,
       maxTokens: 500,
     });
@@ -992,9 +992,9 @@ app.post('/api/identify-fish', upload.single('photo'), async (req: Request, res:
     // Create fish list for AI
     const fishList = allFish.map(f => `${f.name} (${f.scientificName}) - ${f.rarity}`).join('\n');
 
-    // Use OpenRouter AI to identify the fish - Using Google's vision model
+    // Use OpenRouter AI to identify the fish - Using OpenAI's vision model
     const result = await generateText({
-      model: openrouter('google/gemini-flash-1.5'),
+      model: openrouter('openai/gpt-4o-mini'),
       messages: [
         {
           role: 'user',
