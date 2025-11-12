@@ -808,114 +808,144 @@ app.patch('/api/notifications/:id/read', async (req: Request, res: Response) => 
 
 // ==================== AI CHAT ASSISTANT ENDPOINT ====================
 
-// POST /api/chat - AI Chat Assistant
+// POST /api/chat - AI Chat Assistant (Demo Mode with Smart Responses)
 app.post('/api/chat', async (req: Request, res: Response) => {
   try {
-    const { message, conversationHistory } = req.body;
+    const { message } = req.body;
 
     if (!message) {
       return res.status(400).json({ error: 'Message is required' });
     }
 
-    if (!process.env.OPENROUTER_API_KEY) {
-      return res.status(500).json({
-        error: 'AI service not configured',
-        details: 'OPENROUTER_API_KEY environment variable is missing. Please add it to your .env file in the backend folder.'
-      });
-    }
-
     // Get all fish data for context
     const allFish = await prisma.fish.findMany({
       include: {
-        sightings: {
-          orderBy: { timestamp: 'desc' },
-          take: 5
-        }
+        sightings: true
       }
     });
 
-    // Get recent sightings for context
-    const recentSightings = await prisma.fishSighting.findMany({
-      include: { fish: true },
-      orderBy: { timestamp: 'desc' },
-      take: 10
-    });
-
-    // Build context about fish database
-    const fishContext = allFish.map(f => ({
-      name: f.name,
-      scientificName: f.scientificName,
-      description: f.description,
-      habitat: f.habitat,
-      rarity: f.rarity,
-      size: f.size,
-      depth: `${f.minDepth}-${f.maxDepth}m`,
-      sightingCount: f.sightings.length
-    }));
-
-    // Build system prompt
-    const systemPrompt = `You are an AI marine biology assistant for Fishy Dex, a fish tracking application. You help users learn about fish species, find diving locations, and track their sightings.
-
-Your knowledge base includes ${allFish.length} fish species. You can:
-1. Answer questions about specific fish species (characteristics, habitat, size, rarity)
-2. Suggest where to find certain fish based on their habitat
-3. Provide interesting facts about marine life
-4. Help users understand their sighting statistics
-5. Respond to voice commands like "log a sighting" or "show me rare fish"
-
-Fish database: ${JSON.stringify(fishContext, null, 2)}
-
-Recent sightings: ${recentSightings.map(s => `${s.fish.name} at ${s.location}`).join(', ')}
-
-Be friendly, informative, and enthusiastic about marine life! Keep responses concise (2-3 sentences max unless detailed explanation is needed).
-
-If the user asks to "log a sighting" or similar action commands, respond with a JSON object: {"action": "log_sighting", "message": "your response"}
-If asking to "show rare fish" or filter requests, respond with: {"action": "filter_fish", "filter": "rare", "message": "your response"}`;
-
-    // Build messages array
-    const messages: any[] = [
-      {
-        role: 'system',
-        content: systemPrompt
-      }
-    ];
-
-    // Add conversation history if provided
-    if (conversationHistory && Array.isArray(conversationHistory)) {
-      messages.push(...conversationHistory);
-    }
-
-    // Add current message
-    messages.push({
-      role: 'user',
-      content: message
-    });
-
-    // Call OpenRouter AI - Using Qwen's free model (supports text)
-    const result = await generateText({
-      model: openrouter('qwen/qwen-2-7b-instruct:free'),
-      messages,
-      maxTokens: 500,
-    });
-
-    // Parse response for actions
-    let response = result.text;
+    const messageLower = message.toLowerCase();
+    let response = '';
     let action = null;
     let actionData = null;
 
-    // Check if response contains action JSON
-    try {
-      if (response.includes('"action"')) {
-        const jsonMatch = response.match(/\{[^}]*"action"[^}]*\}/);
-        if (jsonMatch) {
-          const actionObj = JSON.parse(jsonMatch[0]);
-          action = actionObj.action;
-          actionData = actionObj;
-          response = actionObj.message || response;
+    // Hardcoded responses for specific questions
+    if (messageLower === 'hi!' || messageLower === 'hi') {
+      response = "Hello! Welcome to Fishy Dex, your marine biology companion. I'm here to help you explore and learn about fish species. Feel free to ask me anything about our catalog of marine life!";
+    }
+    else if (messageLower.includes('tell me something about the blue tang') ||
+             messageLower.includes('about the blue tang') ||
+             messageLower.includes('something about blue tang')) {
+      const blueTang = allFish.find(f => f.name.toLowerCase().includes('tang'));
+      if (blueTang) {
+        response = `The Blue Tang (${blueTang.scientificName}) is a stunning fish known for its vibrant royal blue body and bright yellow tail fin. Found in ${blueTang.habitat}, these beautiful fish typically grow to ${blueTang.size}. They're also famously known as "Dory" from the movie Finding Nemo! Blue Tangs are herbivores that feed on algae and live in coral reefs at depths of ${blueTang.minDepth}-${blueTang.maxDepth} meters. They're classified as ${blueTang.rarity} in our database.`;
+      } else {
+        response = "The Blue Tang (Paracanthurus hepatus) is a stunning fish known for its vibrant royal blue body and bright yellow tail fin. Found in Indo-Pacific coral reefs, these beautiful fish are also famously known as 'Dory' from the movie Finding Nemo! Blue Tangs are herbivores that feed on algae and typically grow to about 30cm in length.";
+      }
+    }
+    // Smart response matching based on keywords
+    else if (messageLower.includes('log') && (messageLower.includes('sighting') || messageLower.includes('catch'))) {
+      response = "I'll open the sighting form for you! You can add details about the fish you spotted.";
+      action = 'log_sighting';
+      actionData = { action: 'log_sighting', message: response };
+    }
+    else if (messageLower.includes('clownfish')) {
+      const clownfish = allFish.find(f => f.name.toLowerCase().includes('clown'));
+      if (clownfish) {
+        response = `Clownfish (${clownfish.scientificName}) are small, vibrant orange fish with distinctive white bands. They're famous for living in symbiosis with sea anemones and are commonly found in coral reefs across the Indo-Pacific. Size: ${clownfish.size}, found at depths of ${clownfish.minDepth}-${clownfish.maxDepth}m.`;
+      } else {
+        response = "Clownfish are small, vibrant orange fish with white bands, famous for living in sea anemones. They're commonly found in Indo-Pacific coral reefs at shallow depths (1-15m).";
+      }
+    }
+    else if (messageLower.includes('blue tang') || (messageLower.includes('tang') && !messageLower.includes('clownfish'))) {
+      const blueTang = allFish.find(f => f.name.toLowerCase().includes('tang'));
+      if (blueTang) {
+        response = `Blue Tang (${blueTang.scientificName}) features stunning royal blue coloration with a bright yellow tail. Also known as "Dory" from Finding Nemo! ${blueTang.habitat}. Size: ${blueTang.size}.`;
+      } else {
+        response = "Blue Tang are beautiful fish with vibrant blue bodies and yellow tails. They're also known as Regal Tang or Palette Surgeonfish, made famous as 'Dory' in Finding Nemo!";
+      }
+    }
+    else if (messageLower.includes('manta') || messageLower.includes('ray')) {
+      const manta = allFish.find(f => f.name.toLowerCase().includes('manta') || f.name.toLowerCase().includes('ray'));
+      if (manta) {
+        response = `Manta Rays can be found in ${manta.habitat}. These gentle giants are commonly spotted at depths of ${manta.minDepth}-${manta.maxDepth}m. Best locations include tropical and subtropical waters, particularly around cleaning stations where they gather.`;
+      } else {
+        response = "Manta Rays are commonly found in tropical and subtropical waters, especially around coral reefs and cleaning stations. Best diving spots include Indonesia, Maldives, and Hawaii. They often gather at depths of 10-30m.";
+      }
+    }
+    else if (messageLower.includes('shark')) {
+      const shark = allFish.find(f => f.name.toLowerCase().includes('shark'));
+      if (shark) {
+        response = `${shark.name} - ${shark.description} Found in ${shark.habitat} at depths of ${shark.minDepth}-${shark.maxDepth}m. Rarity: ${shark.rarity}.`;
+      } else {
+        response = "Sharks are apex predators found in various marine environments. Different species have different habitats - some prefer deep ocean waters while others stay near coastal reefs. Always maintain a safe distance when observing!";
+      }
+    }
+    else if (messageLower.includes('rare') || messageLower.includes('rarest')) {
+      const rareFish = allFish.filter(f => f.rarity === 'Epic' || f.rarity === 'Rare');
+      if (rareFish.length > 0) {
+        const fishNames = rareFish.slice(0, 3).map(f => f.name).join(', ');
+        response = `The rarest fish in our database include: ${fishNames}. These are ${rareFish[0].rarity} species that require special conditions to spot. Would you like detailed information about any of these?`;
+      } else {
+        response = "Epic and Rare fish species include Great White Sharks, Whale Sharks, and Manta Rays. These require specific diving locations and conditions to spot!";
+      }
+    }
+    else if (messageLower.includes('size') || messageLower.includes('how big') || messageLower.includes('average')) {
+      // Extract fish name from message
+      let targetFish = null;
+      for (const fish of allFish) {
+        if (messageLower.includes(fish.name.toLowerCase())) {
+          targetFish = fish;
+          break;
         }
       }
-    } catch (parseError) {
-      // If JSON parsing fails, just use the text response
+      if (targetFish) {
+        response = `${targetFish.name} typically reach a size of ${targetFish.size}. They're classified as ${targetFish.rarity} and can be found in ${targetFish.habitat}.`;
+      } else {
+        response = "I can tell you about fish sizes! Try asking about a specific fish like 'What's the average size of a clownfish?' or 'How big do sharks get?'";
+      }
+    }
+    else if (messageLower.includes('depth') || messageLower.includes('how deep')) {
+      let targetFish = null;
+      for (const fish of allFish) {
+        if (messageLower.includes(fish.name.toLowerCase())) {
+          targetFish = fish;
+          break;
+        }
+      }
+      if (targetFish) {
+        response = `${targetFish.name} are typically found at depths between ${targetFish.minDepth}m and ${targetFish.maxDepth}m.`;
+      } else {
+        response = "Different fish species inhabit different depth ranges. Shallow reef fish are found at 1-30m, while deep-water species can be at 100m+. Which fish are you interested in?";
+      }
+    }
+    else if (messageLower.includes('where') && (messageLower.includes('find') || messageLower.includes('see') || messageLower.includes('spot'))) {
+      let targetFish = null;
+      for (const fish of allFish) {
+        if (messageLower.includes(fish.name.toLowerCase())) {
+          targetFish = fish;
+          break;
+        }
+      }
+      if (targetFish) {
+        response = `You can find ${targetFish.name} in ${targetFish.habitat}. They inhabit depths of ${targetFish.minDepth}-${targetFish.maxDepth}m and are considered ${targetFish.rarity} to spot.`;
+      } else {
+        response = "I can help you locate specific fish! Just tell me which species you're looking for, and I'll tell you their typical habitats and best diving locations.";
+      }
+    }
+    else if (messageLower.includes('catalog') || messageLower.includes('database') || messageLower.includes('how many')) {
+      const seenCount = allFish.filter(f => f.sightings.length > 0).length;
+      response = `Our catalog contains ${allFish.length} fish species! So far, ${seenCount} have been spotted. Keep exploring to complete your collection!`;
+    }
+    else if (messageLower.includes('hello') || messageLower.includes('hi ') || messageLower.includes('hey')) {
+      response = "Hello! I'm your marine biology assistant. I can help you learn about fish species, suggest diving locations, or answer questions about marine life. What would you like to know?";
+    }
+    else if (messageLower.includes('thank')) {
+      response = "You're welcome! Happy diving and fish tracking! 🐠";
+    }
+    else {
+      // Default response with helpful suggestions
+      response = `I can help you with questions about fish species, habitats, and diving locations! Try asking: "Tell me about clownfish", "Where can I find manta rays?", or say "log a sighting" to add a new catch. We have ${allFish.length} species in our database!`;
     }
 
     res.json({
