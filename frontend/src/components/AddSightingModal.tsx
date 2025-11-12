@@ -178,10 +178,12 @@ export default function AddSightingModal({
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* Fish Selection */}
           <div>
-            <label className="block text-sonar-green font-mono text-sm font-bold mb-2">
+            <label htmlFor="fishId" className="block text-sonar-green font-mono text-sm font-bold mb-2">
               FISH SPECIES *
             </label>
             <select
+              id="fishId"
+              name="fishId"
               value={selectedFishId}
               onChange={(e) => setSelectedFishId(e.target.value)}
               className="w-full bg-nautical-blue border border-panel-border text-text-primary px-4 py-2 font-mono text-sm focus:outline-none focus:border-sonar-green"
@@ -202,10 +204,12 @@ export default function AddSightingModal({
           {/* Location Input */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sonar-green font-mono text-sm font-bold mb-2">
+              <label htmlFor="latitude" className="block text-sonar-green font-mono text-sm font-bold mb-2">
                 LATITUDE *
               </label>
               <input
+                id="latitude"
+                name="latitude"
                 type="number"
                 step="any"
                 value={latitude}
@@ -217,10 +221,12 @@ export default function AddSightingModal({
               />
             </div>
             <div>
-              <label className="block text-sonar-green font-mono text-sm font-bold mb-2">
+              <label htmlFor="longitude" className="block text-sonar-green font-mono text-sm font-bold mb-2">
                 LONGITUDE *
               </label>
               <input
+                id="longitude"
+                name="longitude"
                 type="number"
                 step="any"
                 value={longitude}
@@ -244,10 +250,12 @@ export default function AddSightingModal({
 
           {/* Location Name */}
           <div>
-            <label className="block text-sonar-green font-mono text-sm font-bold mb-2">
+            <label htmlFor="location" className="block text-sonar-green font-mono text-sm font-bold mb-2">
               LOCATION NAME
             </label>
             <input
+              id="location"
+              name="location"
               type="text"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
@@ -259,13 +267,15 @@ export default function AddSightingModal({
 
           {/* Photo Upload */}
           <div>
-            <label className="block text-sonar-green font-mono text-sm font-bold mb-2">
+            <label htmlFor="photo" className="block text-sonar-green font-mono text-sm font-bold mb-2">
               PHOTOGRAPHIC EVIDENCE
             </label>
             <div className="text-text-secondary font-mono text-xs mb-2">
               Upload photo for AI verification (JPEG, PNG, WebP - Max 10MB)
             </div>
             <input
+              id="photo"
+              name="photo"
               ref={fileInputRef}
               type="file"
               accept="image/jpeg,image/png,image/webp"
