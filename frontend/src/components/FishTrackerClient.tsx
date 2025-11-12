@@ -1,10 +1,20 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { Fish } from "@/types/fish";
-import Map from "./Map";
 import FishList from "./FishList";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+
+// Dynamically import Map component to avoid SSR issues and reduce initial bundle size
+const Map = dynamic(() => import("./Map"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full flex items-center justify-center bg-deep-ocean">
+      <div className="text-sonar-green animate-pulse">Loading map...</div>
+    </div>
+  ),
+});
 
 interface FishTrackerClientProps {
   fishes: Fish[];
