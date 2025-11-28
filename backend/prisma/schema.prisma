@@ -1,0 +1,139 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Fish {
+  id             Int            @id @default(autoincrement())
+  name           String
+  scientificName String
+  description    String
+  imageUrl       String
+  rarity         String         @default("Common") // Common, Rare, Epic
+  habitat        String
+  size           String
+  minDepth       Int            @default(0)
+  maxDepth       Int            @default(100)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  sightings      FishSighting[]
+}
+
+model FishSighting {
+  id            Int       @id @default(autoincrement())
+  fishId        Int
+  userId        Int?      // Optional user who spotted the fish
+  latitude      Float
+  longitude     Float
+  location      String
+  timestamp     DateTime  @default(now())
+  seen          Boolean   @default(true)
+  photoUrl      String?   // Photo evidence URL
+  aiConfidence  Float?    // AI confidence score (0-1)
+  verified      Boolean   @default(false) // AI verified
+  fish          Fish      @relation(fields: [fishId], references: [id], onDelete: Cascade)
+  user          User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt     DateTime  @default(now())
+  activities    Activity[]
+}
+
+model DivingCenter {
+  id        Int      @id @default(autoincrement())
+  name      String
+  latitude  Float
+  longitude Float
+  region    String
+  createdAt DateTime @default(now())
+}
+
+model User {
+  id                    Int                @id @default(autoincrement())
+  username              String             @unique
+  email                 String             @unique
+  displayName           String
+  avatarUrl             String?
+  points                Int                @default(0)
+  rank                  Int                @default(0)
+  bio                   String?
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  sightings             FishSighting[]
+  achievements          UserAchievement[]
+  sentFriendships       Friendship[]       @relation("SentFriendships")
+  receivedFriendships   Friendship[]       @relation("ReceivedFriendships")
+  activities            Activity[]
+  notifications         Notification[]
+}
+
+model Friendship {
+  id          Int      @id @default(autoincrement())
+  senderId    Int
+  receiverId  Int
+  status      String   // pending, accepted, rejected
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  sender      User     @relation("SentFriendships", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver    User     @relation("ReceivedFriendships", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@unique([senderId, receiverId])
+}
+
+model Achievement {
+  id          Int                @id @default(autoincrement())
+  name        String             @unique
+  description String
+  icon        String
+  category    String             // milestone, rarity, streak, social
+  threshold   Int                // Required value to unlock
+  points      Int                @default(0)
+  createdAt   DateTime           @default(now())
+  users       UserAchievement[]
+}
+
+model UserAchievement {
+  id            Int        @id @default(autoincrement())
+  userId        Int
+  achievementId Int
+  unlockedAt    DateTime   @default(now())
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])
+}
+
+model Activity {
+  id           Int           @id @default(autoincrement())
+  userId       Int
+  type         String        // sighting, achievement, friend_request, friend_accept
+  sightingId   Int?
+  message      String
+  isPublic     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sighting     FishSighting? @relation(fields: [sightingId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  type      String   // friend_request, friend_accept, achievement, rare_fish
+  message   String
+  isRead    Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model TemperatureReading {
+  id          Int      @id @default(autoincrement())
+  latitude    Float
+  longitude   Float
+  temperature Float    // in Celsius
+  depth       Int      @default(0) // in meters
+  timestamp   DateTime @default(now())
+  source      String   @default("simulated") // simulated, api, sensor
+}
